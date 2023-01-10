@@ -1,6 +1,7 @@
 import os
 import platform
 import stat
+import tarfile
 
 from .fs import copy_file, copy_tree, make_tree
 from .log import log
@@ -77,18 +78,20 @@ def ensure_patchelf():
         return False
 
     iarch = 'i386' if _ARCH == 'i686' else _ARCH
-    appimage = 'patchelf-{0:}.AppImage'.format(iarch)
-    baseurl = 'https://github.com/ai-roboter-1/patchelf.appimage/releases/download'
+    version = '0.15.0'
+    patchelf_file = 'patchelf-{version}-{iarch}.tar.gz'.format(version=version, iarch=iarch)
+    baseurl = 'https://github.com/NixOS/patchelf/releases/download/'
     log('INSTALL', 'patchelf from %s', baseurl)
 
     dirname = os.path.dirname(PATCHELF)
     patchelf = dirname + '/patchelf'
     make_tree(dirname)
     with TemporaryDirectory() as tmpdir:
-        urlretrieve(os.path.join(baseurl, 'v1.0-beta', appimage), appimage)
-        os.chmod(appimage, stat.S_IRWXU)
-        system(('./' + appimage, '--appimage-extract'))
-        copy_file('squashfs-root/usr/bin/patchelf', patchelf)
+        urlretrieve(os.path.join(baseurl, version, patchelf_file), patchelf_file)
+        with tarfile.open(patchelf_file, "r") as patchelf_tarfile:
+            patchelf_tarfile.extract("./bin/patchelf")
+            copy_file("./bin/patchelf", patchelf)
+            patchelf_tarfile.close()
     os.chmod(patchelf, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
 
     return True
